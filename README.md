@@ -9,7 +9,7 @@ This software requires python3  and the following libraries:
   - scipy: https://scipy.org/install/
   - tkinter: https://docs.python.org/3/library/tkinter.html
   - (optional but recommanded for Linux) pip: https://docs.python.org/3/installing/index.html
-  - (optional in Linux) jupyter-notebook: https://jupyter.org/
+  - (optional in Linux) jupyterlab: https://jupyter.org/install
 
 ## 1 - Linux/Ubuntu
 
@@ -26,10 +26,12 @@ and derivtives use `sudo apt-get install git`).
 
 Alternatively, you can download the git repository (available from
 [Github](https://github.com/STAR-PORT/ARMOR/)) as an archive and uncompress it on your computer.
-You should have four files:
+You should have six files:
   - LICENCE
   - ARMOR.ipynb
   - ARMOR.py
+  - ARMOR.exe
+  - Screenshot_App.png
   - README.md
 
 ### Installing requirements
@@ -62,31 +64,31 @@ To run the application, you have two choice:
 
   - launching as a notebook:
     
-        jupyter-notebook ARMOR.ipynb
+        jupyter-lab ARMOR.ipynb
 
   inside the notebook, just press the "Restart the Kernel and run all cells" button.
 
 A new interactive window will open with which you can play.
 
-## 2 - Windows/MacOS
+## 2 - Windows
 
 ### Download archive
 
 You can download the git repository (available from
 [Github](https://github.com/STAR-PORT/ARMOR/)) as an archive and uncompress it on your computer.
-You should have four files:
+You should have six files:
   - LICENCE
   - ARMOR.ipynb
   - ARMOR.py
+  - ARMOR.exe
+  - Screenshot_App.png
   - README.md
-
-### Installing requirements
 
 
 ### Running the code
 
-To run the application :
+To run the application, double click on the executable file
 
-inside the notebook, just press the "Restart the Kernel and run all cells" button.
+    ARMOR.exe
 
 A new interactive window will open with which you can play.
