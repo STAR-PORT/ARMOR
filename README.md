@@ -10,7 +10,7 @@ This software requires python3 and the following libraries:
   - tkinter: https://docs.python.org/3/library/tkinter.html
   - (optional) jupyterlab: https://jupyter.org/install
 
-## 1 - From source code (Python 3)
+## 1 - From source code (all Platforms)
 
 ### Download source code with Git
 The source code is available from
@@ -18,8 +18,7 @@ The source code is available from
 
     git clone https://github.com/STAR-PORT/ARMOR.git
 
-(This obviously requires git to be installed on your system, on Debian
-and derivtives use `sudo apt-get install git`).
+(This obviously requires git to be installed on your system).
 
 ### Download archive
 
@@ -33,7 +32,7 @@ You should have six files:
   - README.md
   - requirements.txt
 
-### Installing requirements (Linux)
+### Installing requirements
 
 The first requirements to be met are a working python 3 and the pip library to install dependancies.
 Then you can install all the dependancies listed using in the project folder:
