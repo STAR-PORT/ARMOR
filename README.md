@@ -35,7 +35,7 @@ You should have six files:
 ### Installing requirements
 
 The first requirements to be met are a working python 3 and the pip library to install dependancies.
-Then you can install all the dependancies listed using in the project folder:
+Then you can install all the dependancies listed using, in the project folder:
 
     pip install -r requirements.txt
 
