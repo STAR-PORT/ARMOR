@@ -25,11 +25,10 @@ and derivtives use `sudo apt-get install git`).
 
 Alternatively, you can download the git repository (available from
 [Github](https://github.com/STAR-PORT/ARMOR/)) as an archive and uncompress it on your computer.
-You should have seven files:
+You should have six files:
   - LICENCE
   - ARMOR.ipynb
   - ARMOR.py
-  - ARMOR.exe
   - Screenshot_App.png
   - README.md
   - requirements.txt
@@ -60,19 +59,9 @@ A new interactive window will open with which you can play.
 
 ## 2 - Executable file (Windows only)
 
-### Download archive
+### Download executable file
 
-You can download the git repository (available from
-[Github](https://github.com/STAR-PORT/ARMOR/)) as an archive and uncompress it on your computer.
-You should have seven files:
-  - LICENCE
-  - ARMOR.ipynb
-  - ARMOR.py
-  - ARMOR.exe
-  - Screenshot_App.png
-  - README.md
-  - requirements.txt
-
+You can download the executable file named "ARMOR.exe" from the "Release" in GitHub.
 
 ### Running the code
 
