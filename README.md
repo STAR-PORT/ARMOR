@@ -70,3 +70,7 @@ To run the application, double click on the executable file
 
 A new interactive window will open with which you can play.
 NB: the code is significantly slower with the executable (Windows) compared to the python (Linux) version
+
+## 3 - Acknowledgments
+
+This work is a result of Agenda “New Space Portugal”, nr. C644936537-00000046, investment project nr. 11, financed by the Recovery and Resilience Plan (PRR) and by European Union -  NextGeneration EU. Funded by the European Union – NextGenerationEU. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Commission. Neither the European Union nor the European Commission can be held responsible for them.
