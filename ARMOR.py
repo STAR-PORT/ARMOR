@@ -645,7 +645,7 @@ def coefficient_shielding_tid():
 
     thickness = param_sliders["Shielding thickness"]["slider"].get()/10. # get value in mm
     d = thickness / 1000. # convert into meters
-    attenuation_factor = np.exp(-mu_rho * rho * d**0.5) # empirical from measurement shown in ref Introduction_To_Radiation_Shielding.pdf
+    attenuation_factor = np.exp(-mu_rho * rho * d)
     return attenuation_factor
 
 
