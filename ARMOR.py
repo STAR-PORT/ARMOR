@@ -44,9 +44,9 @@ material_params = {
     "rho":0., # kg.m-3
     "muorho":0.0, # m2/kg
     "price_perKg":0.0,
-    "StopPower_sol":np.NaN,
-    "StopPower_proton":np.NaN,
-    "StopPower_elec":np.NaN
+    "StopPower_sol":np.nan,
+    "StopPower_proton":np.nan,
+    "StopPower_elec":np.nan
     },
 "Aluminium":{
     "rho":2700., # kg.m-3
@@ -66,11 +66,11 @@ material_params = {
     },
 "Composite":{
     "rho":1600., # kg.m-3
-    "muorho":0.05, #m2/kg
+    "muorho":0.05, # m2/kg
     "price_perKg":885., # 6 1mx1mx1mm plates of carbon fiber cost ~1240$
-    "StopPower_sol":np.NaN,
-    "StopPower_proton":np.NaN,
-    "StopPower_elec":np.NaN
+    "StopPower_sol":np.nan,
+    "StopPower_proton":np.nan,
+    "StopPower_elec":np.nan
     }
 }
 
@@ -361,7 +361,7 @@ def plot_orbit(a=19300, e=0.25, i=45., Omega=90., omega=90.):
     ax_orbit.plot_surface(x_ssa, y_ssa, z_ssa, color='purple', alpha=0.5)
     ax_orbit.scatter(1e18, 1e18, 1e18, color='purple', label='SAA', s=20, alpha=0.5)
 
-    ax_orbit.legend()
+    ax_orbit.legend(loc='upper left')
     ax_orbit.set_xlabel('X (km)')
     ax_orbit.set_ylabel('Y (km)')
     ax_orbit.set_zlabel('Z (km)')
@@ -932,7 +932,11 @@ def plot_tid_DD():
     ax_tid.set_ylim(0.,1200.)
     ax_tid.set_xlim(0.,1.1*time[-1])
 
-    ax_dd.clear()
+    
+    for line in ax_dd.get_lines():
+        line.remove()
+    for collection in ax_dd.collections:
+        collection.remove()
     ax_dd.plot(time_prev, DDvsTime_prev, label='DD prev', color='blue', alpha=0.3)
     ax_dd.plot(time, DDvsTime, label='DD', color='blue')
     ax_dd.set_ylabel('Displacement Damage (MeV/g)', color='blue')
