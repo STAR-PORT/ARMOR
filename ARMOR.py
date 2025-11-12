@@ -66,11 +66,19 @@ material_params = {
     },
 "Composite":{
     "rho":1600., # kg.m-3
-    "muorho":0.05, # m2/kg
+    "muorho":0.05, #m2/kg
     "price_perKg":885., # 6 1mx1mx1mm plates of carbon fiber cost ~1240$
     "StopPower_sol":np.nan,
     "StopPower_proton":np.nan,
     "StopPower_elec":np.nan
+    },
+"Satellite":{
+    "rho":2110., # kg.m-3 # Composition 50% Aluminium, 30% Composite, 20% Electronics
+    "muorho":0.041, #m2/kg Typical value from materials forming the satellite (without shielding)
+    "price_perKg":np.nan, # should not be used
+    "StopPower_sol":5.678, # Same as Aluminium
+    "StopPower_proton":33.76, # Same as Aluminium
+    "StopPower_elec":1.604 # Same as Aluminium
     }
 }
 
@@ -143,8 +151,9 @@ def compute_time_in_van_allen():
     Args:
 
     Returns:
-        time_inner (float): time passed in seconds during the orbit in the inner Va Allen belt
-        time_outer (float): time passed in seconds during the orbit in the outer Va Allen belt
+        time_inner (array): time array in seconds flagging the passage of the orbit in the inner Van Allen belt
+        time_outer (array): time array in seconds flagging the passage of the orbit in the outer Van Allen belt
+        dt         (array): time step array for integration
 
     """
 
@@ -157,8 +166,9 @@ def compute_time_in_van_allen():
     h = np.sqrt(mu * a * (1 - e**2))
 
 
-    time_inner = 0
-    time_outer = 0
+    time_inner = np.zeros(len(x))
+    time_outer = np.zeros(len(x))
+    dt         = np.zeros(len(x))
 
     theta_values = np.linspace(0, 2 * np.pi, len(x))
     for i in range(len(theta_values) - 1):
@@ -171,21 +181,20 @@ def compute_time_in_van_allen():
         v = np.sqrt(mu * (2/r - 1/a))
 
         # time between two points (2nd kepler Law)
-        dt = (r**2 / h) * (theta_values[i+1] - theta_values[i])
+        dt[i] = (r**2 / h) * (theta_values[i+1] - theta_values[i])
 
         # Check if the sattelite is in one Van Allen belt
         if isInTorus(x[i], y[i], z[i], Rcenter_inner, Radius_inner):
-            time_inner += dt
+            time_inner[i] = 1.
         elif isInTorus(x[i], y[i], z[i], Rcenter_outter, Radius_outter):
-            time_outer += dt
-
-    return time_inner, time_outer
+            time_outer[i] = 1.
+    return time_inner, time_outer, dt
 
 
 # In[6]:
 
 
-def compute_fluence_van_allen(year):
+def compute_fluence_van_allen(year=None):
     """
     Compute fluence inside Van Allen Belts
 
@@ -193,30 +202,24 @@ def compute_fluence_van_allen(year):
 
 
     Returns:
-        fluence_inner (float): Fluence in particles/cm²/s in the inner Van Allen Belt
-        fluence_outer (float): Fluence in particles/cm²/s in the outer Van Allen Belt
+        fluence_inner (array): Fluence in particles/cm²/s in the inner Van Allen Belt along the orbit
+        fluence_outer (array): Fluence in particles/cm²/s in the outer Van Allen Belt along the orbit
     """
 
-    # Physical constantes
-    c = 3.e10  # speed of light (cm/s)
-    m_p = 1.67e-24  # proton's mass (kg)
-    m_e = 9.11e-28  # electron's mass (kg)
-    MeV_to_J = 1.602e-16  # Conversion MeV -> erg
+    # get radius array
+    rr = np.sqrt(x**2+y**2+z**2)
 
-    # Convert energy from MeV to Joules
-    E_inner_J = 10. * MeV_to_J
-    E_outer_J = 0.5 * MeV_to_J
+    # Ref Fluence from Mauk 2013
+    fluence_inner_ref = 2.0e5 # particles/cm²/s
+    fluence_outer_ref = 1.0e6 # particles/cm²/s
 
-    # Relativistic speed of particles
-    v_inner = c * np.sqrt(1 - (m_p * c**2 / (E_inner_J + m_p * c**2))**2)  # Protons
-    v_outer = c * np.sqrt(1 - (m_e * c**2 / (E_outer_J + m_e * c**2))**2)  # Electrons
+    fluence_inner = fluence_inner_ref * np.exp(-(rr-Rcenter_inner)**2/(2.*Radius_inner**2))  
+    fluence_outer = fluence_outer_ref * np.exp(-(rr-Rcenter_outter)**2/(2.*Radius_outter**2))
 
-    rho_inner = 2.e5 # cm-3
-    rho_outter = 1.e6 # cm-3
-
-    # Fluence = rho * v
-    fluence_inner = rho_inner * v_inner  # particles/cm²/s
-    fluence_outer = rho_outter * v_outer # particles/cm²/s
+    if (year!=None):
+        modulation = 1. #+ 0.5 * np.sin(2 * np.pi \exp/ 11 * (year-5.5/2.)) # Find good parametrization
+        fluence_inner*=modulation
+        fluence_outer*=modulation
 
     return fluence_inner, fluence_outer
 
@@ -553,17 +556,25 @@ def compute_radiation(year=None):
     if (year==None):
         year = get_converted_slider_value("Solar Activity Phase")
     coef_ionising = 1.e-6 # 5.5e-6+4.5e-6*np.sin(2 * np.pi / 11 * (year-5.5/2.))
-    muorho = 0.041 #Typical value from materials forming the satellite (without shielding)
 
     radiation=np.ones(len(r))
-    radiation *= coef_ionising*current_solar_flux*3600.*muorho*1000. 
+    # radiation from the Sun light
+    radiation *= coef_ionising*current_solar_flux*3600.*material_params["Satellite"]["muorho"]*1e3
+
+    # Computing TID from energetic particles in Van Allen belts
+    fluence_innerBelt, fluence_outterBelt = compute_fluence_van_allen(year=year)
+    Area = 6.0e4 # 6 faces of surface area of 10^4 cm^2
+    mA = 100e3 / Area #material_params["Satellite"]["rho"]*1.e-3 * 0.5 #mass per unit area g/cm2
+    MeV_to_J = 1.602e-13
     for i in range(len(r)):
-        xx = x[i]
-        yy = y[i]
-        zz = z[i]
-        rr = np.sqrt(xx**2+yy**2+zz**2)
-        if (isInTorus(xx, yy, zz, Rcenter_inner, Radius_inner) or isInTorus(xx, yy, zz, Rcenter_outter, Radius_outter)):
-            radiation[i] += 60*np.power(rr/25000.,2.)
+        if (isInTorus(x[i], y[i], z[i], Rcenter_inner, Radius_inner)):
+            deltaE = min(material_params["Satellite"]["StopPower_proton"] * mA, 10.) * MeV_to_J
+            rad = fluence_innerBelt[i] * Area/4 * deltaE / 200. * 1e3 * 3600.
+            radiation[i] += rad
+        elif (isInTorus(x[i], y[i], z[i], Rcenter_outter, Radius_outter)):
+            deltaE = min(material_params["Satellite"]["StopPower_elec"] * mA, 0.5) * MeV_to_J
+            rad = fluence_outterBelt[i] * Area/4 * deltaE / 200. * 1e3 * 3600.
+            radiation[i] += rad
         else:
             radiation[i] += 0.
     return phase, radiation
@@ -756,9 +767,9 @@ def compute_DD(year=None):
         year (float): time in years for the activity phase of the sun
 
     Returns:
-        DD_solar (float): Displacement Damage from solar particles (protons @100MeV) without shielding
-        DD_protons (float): Displacement Damage from protons in inner Van Allen belt without shielding
-        DD_electrons (float): Displacement Damage from electrons in outer Van Allen belt without shielding
+        DD_solar (float): Displacement Damage from solar particles (protons @100MeV) without shielding [MeV/g]
+        DD_protons (float): Displacement Damage from protons in inner Van Allen belt without shielding [MeV/g]
+        DD_electrons (float): Displacement Damage from electrons in outer Van Allen belt without shielding [MeV/g]
 
     """
 
@@ -768,16 +779,16 @@ def compute_DD(year=None):
     if (year==None):
         year = get_converted_slider_value("Solar Activity Phase")
 
-    t_inner, t_outter = compute_time_in_van_allen() # in seconds
+    t_inner, t_outter, dt = compute_time_in_van_allen() # flag arrays and time_step array
 
     solar_particle_fluence_o100MeV = 8.24e1 *(1.1 + np.sin(2 * np.pi / 11 * (year-5.5/2.))) # Section 4.3 https://ntrs.nasa.gov/api/citations/20000021506/downloads/20000021506.pdf
-    fluence_innerBelt, fluence_outterBelt = compute_fluence_van_allen(year)
+    fluence_innerBelt, fluence_outterBelt = compute_fluence_van_allen(year=year)
     NIEL_protons = 5e-3  # NIEL for protons (MeV cm²/g)
     NIEL_electrons = 1e-4  # NIEL for electrons (MeV cm²/g)
 
     DD_solar = solar_particle_fluence_o100MeV * Period_s * NIEL_protons
-    DD_protons = fluence_innerBelt * t_inner * NIEL_protons
-    DD_electrons = fluence_outterBelt * t_outter * NIEL_electrons
+    DD_protons = np.sum(fluence_innerBelt * dt * t_inner * NIEL_protons)
+    DD_electrons = np.sum(fluence_outterBelt * dt * t_outter * NIEL_electrons)
     return DD_solar, DD_protons, DD_electrons
 
 
@@ -830,7 +841,7 @@ def printDDperOrbit(year=None):
     DD_tot = DD_solar + DD_protons + DD_electrons
     DD_tot_protected = DD_solar * coefs_shielding_DD[0] + DD_protons * coefs_shielding_DD[1] + DD_electrons * coefs_shielding_DD[2]
 
-    label_DDperOrbit.config(text=f"Total Displacement Damage (DD): {DD_tot:.2e} MeV/g")
+    label_DDperOrbit.config(text=f"Displacement Damage (DD) per orbit: {DD_tot:.2e} MeV/g")
 
     label_DDperOrbit_protected.config(text=f"DD per orbit after shielding: {DD_tot_protected:.2e} MeV/g")
 
@@ -875,7 +886,7 @@ def integrateTID_DD():
     DD_solar_min, DD_protons_min, DD_electrons_min = compute_DD(year=0.)
     DD_perOrbit_min = DD_solar_min * coefs_shielding_DD[0] + DD_protons_min * coefs_shielding_DD[1] + DD_electrons_min * coefs_shielding_DD[2]
 
-    nborbits = max(2,min(math.ceil(1000./TID_perOrbit_min), math.ceil(1.e12/DD_perOrbit_min))) # minimum number of orbit: 2  
+    nborbits = max(2,min(math.ceil(1000./TID_perOrbit_min), math.ceil(1.e11/DD_perOrbit_min))) # minimum number of orbit: 2  
     time_max = nborbits*Period
 
     # create arrays
@@ -932,7 +943,6 @@ def plot_tid_DD():
     ax_tid.set_ylim(0.,1200.)
     ax_tid.set_xlim(0.,1.1*time[-1])
 
-    
     for line in ax_dd.get_lines():
         line.remove()
     for collection in ax_dd.collections:
@@ -942,9 +952,8 @@ def plot_tid_DD():
     ax_dd.set_ylabel('Displacement Damage (MeV/g)', color='blue')
     ax_dd.yaxis.label.set_color('blue')
     ax_dd.tick_params(axis='y', colors='blue')
-    ax_dd.hlines(1.e11, -100., 1.5*time[-1], color='blue', linestyle='--', label="DD lower limit")
-    ax_dd.hlines(1.e12, -100., 1.5*time[-1], color='blue', linestyle=':', label="DD upper limit")
-    ax_dd.set_ylim(0.,1.15e12)
+    ax_dd.hlines(1.e11, -100., 1.5*time[-1], color='blue', linestyle='--', label="DD limit")
+    ax_dd.set_ylim(0.,1.15e11)
 
     ax_tid.set_title('TID & DD vs. Time')
     ax_tid.legend(loc="upper left")
@@ -1266,7 +1275,7 @@ label_Satmass.pack(side=tk.LEFT)
 label_TIDperOrbit_frame = tk.Frame(protection_frame)
 label_TIDperOrbit_frame.pack(fill=tk.X)
 
-label_TIDperOrbit = tk.Label(label_TIDperOrbit_frame, text=f"Total Ionizing Dose (TID) per Orbit: NaN Grays", font=("Arial", 16), fg="black")
+label_TIDperOrbit = tk.Label(label_TIDperOrbit_frame, text=f"Total Ionizing Dose (TID) per orbit: NaN Grays", font=("Arial", 16), fg="black")
 label_TIDperOrbit.pack(side=tk.LEFT)
 
 
@@ -1278,7 +1287,7 @@ label_TIDperOrbit.pack(side=tk.LEFT)
 label_DDperOrbit_frame = tk.Frame(protection_frame)
 label_DDperOrbit_frame.pack(fill=tk.X)
 
-label_DDperOrbit = tk.Label(label_DDperOrbit_frame, text=f"Total Displacement Damage (DD): NaN MeV/g", font=("Arial", 16), fg="black")
+label_DDperOrbit = tk.Label(label_DDperOrbit_frame, text=f"Displacement Damage (DD) per orbit: NaN MeV/g", font=("Arial", 16), fg="black")
 label_DDperOrbit.pack(side=tk.LEFT)
 
 
@@ -1315,7 +1324,7 @@ unit_label.pack(side=tk.LEFT)
 
 
 # Slider for parameter
-slider_protection = ttk.Scale(protection_frame, from_=0, to=300, orient=tk.HORIZONTAL, length=300)
+slider_protection = ttk.Scale(protection_frame, from_=0, to=1000, orient=tk.HORIZONTAL, length=300)
 slider_protection.pack(fill=tk.X, padx=5, pady=5)
 slider_protection.set(10)
 
