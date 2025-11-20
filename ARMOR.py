@@ -207,14 +207,14 @@ def compute_fluence_van_allen(year=None):
     """
 
     # get radius array
-    rr = np.sqrt(x**2+y**2+z**2)
+    rcyl = np.sqrt(x**2+y**2)
 
     # Ref Fluence from Mauk 2013
     fluence_inner_ref = 2.0e5 # particles/cm²/s
     fluence_outer_ref = 1.0e6 # particles/cm²/s
 
-    fluence_inner = fluence_inner_ref * np.exp(-(rr-Rcenter_inner)**2/(2.*Radius_inner**2))  
-    fluence_outer = fluence_outer_ref * np.exp(-(rr-Rcenter_outter)**2/(2.*Radius_outter**2))
+    fluence_inner = fluence_inner_ref * np.exp(-(rcyl-Rcenter_inner)**2/(2.*Radius_inner**2))  
+    fluence_outer = fluence_outer_ref * np.exp(-(rcyl-Rcenter_outter)**2/(2.*Radius_outter**2))
 
     if (year!=None):
         modulation = 1. #+ 0.5 * np.sin(2 * np.pi \exp/ 11 * (year-5.5/2.)) # Find good parametrization
@@ -1550,7 +1550,7 @@ canvas_tid.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 initialize_entries()
 
 
-# In[ ]:
+# In[77]:
 
 
 # Run the application
