@@ -324,21 +324,21 @@ def plot_orbit(a=19300, e=0.25, i=45., Omega=90., omega=90.):
     global R_earth, Radius_inner, Rcenter_inner, Radius_outter, Rcenter_outter
     R_earth = 6371.
 
-    # Inner Belt
-    rinner_min = R_earth + 1000. #B.H. Mauk et al. 2012  #1.2*R_earth Ganushkina et al. 2011
-    rinner_max = R_earth + 6000.                         #3.*R_earth                          
-    Radius_inner = (rinner_max-rinner_min)/2.
-    Rcenter_inner = (rinner_max+rinner_min)/2.
+    # Inner Belt # Li and Hudson 2019
+    Rcenter_inner = 1.5*R_earth
+    rinner_min = 1.3*R_earth
+    rinner_max = 1.7*R_earth
+    Radius_inner = 0.2*R_earth
 
     X_inner, Y_inner, Z_inner = torus(Rcenter_inner, Radius_inner)
     ax_orbit.plot_surface(X_inner, Y_inner, Z_inner, color='red', alpha=0.6)
     ax_orbit.scatter(1e18, 1e18, 1e18, color='red', alpha=0.6, lw=4, label='Inner Van Allen Belt')
 
-    # Outter belt
-    routter_min = R_earth + 15000. #B.H. Mauk et al. 2012 #3.*R_earth #Ganushkina et al. 2011
-    routter_max = R_earth + 25000.                        #7.*R_earth
-    Radius_outter = (routter_max-routter_min)/2.
-    Rcenter_outter = (routter_max+routter_min)/2.
+    # Outter belt # Li and Hudson 2019
+    Rcenter_outter = 4.*R_earth
+    routter_min = 3.*R_earth
+    routter_max = 5.*R_earth
+    Radius_outter = 1.*R_earth
 
     X_outter, Y_outter, Z_outter = torus(Rcenter_outter, Radius_outter)
     ax_orbit.plot_surface(X_outter, Y_outter, Z_outter, color='green', alpha=0.3)
@@ -1550,7 +1550,7 @@ canvas_tid.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 initialize_entries()
 
 
-# In[77]:
+# In[ ]:
 
 
 # Run the application
