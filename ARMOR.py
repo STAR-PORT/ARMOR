@@ -31,10 +31,17 @@ import scipy.integrate as integrate
 import math
 
 
+# In[2]:
+
+
+# DEBUG
+import time
+
+
 # ---
 # ## Defining material properties
 
-# In[2]:
+# In[3]:
 
 
 # Make a ditionary containing the possible material for shielding and their relevant properties as the density, mu/rho factor, price and Stopping Power
@@ -86,7 +93,7 @@ material_params = {
 # ---
 # ## Defining functions
 
-# In[3]:
+# In[4]:
 
 
 def torus(R, r):
@@ -104,8 +111,8 @@ def torus(R, r):
 
     """
 
-    phi = np.linspace(0, 2*np.pi, 100)  # Angle azimutal
-    theta = np.linspace(-np.pi/2, np.pi/2, 50)  # Angle polaire
+    phi = np.linspace(0, 2*np.pi, 30)  # Angle azimutal
+    theta = np.linspace(-np.pi/2, np.pi/2, 10)  # Angle polaire
     phi, theta = np.meshgrid(phi, theta)
     X = (R + r * np.cos(theta)) * np.cos(phi)
     Y = (R + r * np.cos(theta)) * np.sin(phi)
@@ -113,7 +120,7 @@ def torus(R, r):
     return X, Y, Z
 
 
-# In[4]:
+# In[5]:
 
 
 def isInTorus(x, y, z, R_c, r_t):
@@ -132,16 +139,22 @@ def isInTorus(x, y, z, R_c, r_t):
 
     """
 
-    # radial distance from center
-    r_dist = np.sqrt(x**2 + y**2)  # Projection in the XY plane
+    # Radial projection distance onto XY plane
+    r_dist = np.sqrt(x*x + y*y)
 
-    # Check condition inside Tore
-    in_torus = (np.abs(r_dist - R_c) <= r_t) and (np.abs(z) <= r_t)
+    # First condition: radial distance to torus center
+    cond_radial = np.abs(r_dist - R_c) <= r_t
+
+    # Second condition: vertical thickness
+    cond_vertical = np.abs(z) <= r_t
+
+    # Combine conditions element-wise with &
+    in_torus = cond_radial & cond_vertical
 
     return in_torus
 
 
-# In[5]:
+# In[6]:
 
 
 def compute_time_in_van_allen():
@@ -171,7 +184,7 @@ def compute_time_in_van_allen():
     dt         = np.zeros(len(x))
 
     theta_values = np.linspace(0, 2 * np.pi, len(x))
-    for i in range(len(theta_values) - 1):
+    for i in range(len(theta_values)-1):
         theta = theta_values[i]
 
         # orbital radius at theta_value
@@ -186,12 +199,12 @@ def compute_time_in_van_allen():
         # Check if the sattelite is in one Van Allen belt
         if isInTorus(x[i], y[i], z[i], Rcenter_inner, Radius_inner):
             time_inner[i] = 1.
-        elif isInTorus(x[i], y[i], z[i], Rcenter_outter, Radius_outter):
+        elif isInTorus(x[i], y[i], z[i], Rcenter_outer, Radius_outer):
             time_outer[i] = 1.
     return time_inner, time_outer, dt
 
 
-# In[6]:
+# In[7]:
 
 
 def compute_fluence_van_allen(year=None):
@@ -214,7 +227,7 @@ def compute_fluence_van_allen(year=None):
     fluence_outer_ref = 1.0e6 # particles/cm²/s
 
     fluence_inner = fluence_inner_ref * np.exp(-(rcyl-Rcenter_inner)**2/(2.*Radius_inner**2))  
-    fluence_outer = fluence_outer_ref * np.exp(-(rcyl-Rcenter_outter)**2/(2.*Radius_outter**2))
+    fluence_outer = fluence_outer_ref * np.exp(-(rcyl-Rcenter_outer)**2/(2.*Radius_outer**2))
 
     if (year!=None):
         modulation = 1. #+ 0.5 * np.sin(2 * np.pi \exp/ 11 * (year-5.5/2.)) # Find good parametrization
@@ -224,13 +237,51 @@ def compute_fluence_van_allen(year=None):
     return fluence_inner, fluence_outer
 
 
-# In[7]:
+# In[8]:
+
+
+def update_basicslabels(event=None):
+    """
+    Function which update all the labelsin the information panelsby calling the relevent update functions
+    This function is called when the mouse's left button is realeased inside the App window
+
+    Args:
+
+
+    Returns:
+
+    """
+
+    print_Period()
+    printTotalMassCost()
+
+
+# In[9]:
+
+
+def update_labels(event=None):
+    """
+    Function which update all the labelsin the information panelsby calling the relevent update functions
+    This function is called when the mouse's left button is realeased inside the App window
+
+    Args:
+
+
+    Returns:
+
+    """
+
+    printTIDperOrbit()
+    printDDperOrbit()
+
+
+# In[10]:
 
 
 def update_basicgraphs(event=None):
     """
     Function which update all the basic panels and text by calling the relevent update functions
-    This function is called when the mouse is moved inside the App window
+    This function is called when the mouse's left button is realeased inside the App window
 
     Args:
 
@@ -241,13 +292,9 @@ def update_basicgraphs(event=None):
 
     update_orbit()
     update_solar_flux()
-    print_Period()
-    printTIDperOrbit()
-    printDDperOrbit()
-    printTotalMassCost()
 
 
-# In[8]:
+# In[11]:
 
 
 def update_all(event=None):
@@ -262,11 +309,87 @@ def update_all(event=None):
 
     """
 
+    update_basicslabels()
+    update_labels()
     update_basicgraphs()
     update_tid_DD()
 
 
-# In[9]:
+# In[12]:
+
+
+def plot_3DObjects():
+    """
+    Function which plot the Earth and the Val Allen Belts + an empty orbit in the 3D plot in panel 1
+
+    Args:
+
+    Returns:
+        A nice plot !
+
+    """
+
+    # Parameters Van Allen Belts
+    global R_earth, Radius_inner, Rcenter_inner, Radius_outer, Rcenter_outer
+    R_earth = 6371.
+
+    # Inner Belt # Li and Hudson 2019
+    Rcenter_inner = 1.5*R_earth
+    rinner_min = 1.3*R_earth
+    rinner_max = 1.7*R_earth
+    Radius_inner = 0.2*R_earth
+
+    X_inner, Y_inner, Z_inner = torus(Rcenter_inner, Radius_inner)
+    ax_orbit.plot_surface(X_inner, Y_inner, Z_inner, color='red', alpha=0.6)
+    ax_orbit.scatter(1e18, 1e18, 1e18, color='red', alpha=0.6, lw=4, label='Inner Van Allen Belt')
+
+    # outer belt # Li and Hudson 2019
+    Rcenter_outer = 4.*R_earth
+    router_min = 3.*R_earth
+    router_max = 5.*R_earth
+    Radius_outer = 1.*R_earth
+
+    X_outer, Y_outer, Z_outer = torus(Rcenter_outer, Radius_outer)
+    ax_orbit.plot_surface(X_outer, Y_outer, Z_outer, color='green', alpha=0.3)
+    ax_orbit.scatter(1e18, 1e18, 1e18, color='green', alpha=0.3, lw=4, label='Outer Van Allen Belt')
+
+
+    thetae = np.linspace(0, 2*np.pi, 30) 
+    phie = np.linspace(0, np.pi, 30)
+    thetae, phie = np.meshgrid(thetae, phie)
+
+    # Earth coordinate
+    x_earth = R_earth * np.cos(thetae) * np.sin(phie)
+    y_earth = R_earth * np.sin(thetae) * np.sin(phie)
+    z_earth = R_earth * np.cos(phie)
+    ax_orbit.plot_surface(x_earth, y_earth, z_earth, color='b', alpha=0.7)
+
+
+    # Highlight South Atlantic Anomaly
+    R_SSA = 5000.
+    x_ssa = R_SSA * np.cos(thetae) * np.sin(phie) + 4783.6
+    y_ssa = R_SSA * np.sin(thetae) * np.sin(phie) - 4014.7
+    z_ssa = R_SSA * np.cos(phie) - 3185.5
+    ax_orbit.plot_surface(x_ssa, y_ssa, z_ssa, color='purple', alpha=0.5)
+    ax_orbit.scatter(1e18, 1e18, 1e18, color='purple', label='SAA', s=20, alpha=0.5)
+
+    # Empty orbit
+    global orbit_line
+    orbit_line, = ax_orbit.plot([], [], [], label='Satellite Orbit', color="black", linewidth=2)
+
+
+    ax_orbit.legend(loc='upper left')
+    ax_orbit.set_xlabel('X (km)')
+    ax_orbit.set_ylabel('Y (km)')
+    ax_orbit.set_zlabel('Z (km)')
+    ax_orbit.set_title('3D Orbit Visualization', fontsize=16)
+    coord_max = 40000.
+    ax_orbit.set_xlim(-coord_max, coord_max)
+    ax_orbit.set_ylim(-coord_max, coord_max)
+    ax_orbit.set_zlim(-coord_max, coord_max)
+
+
+# In[13]:
 
 
 def plot_orbit(a=19300, e=0.25, i=45., Omega=90., omega=90.):
@@ -286,7 +409,6 @@ def plot_orbit(a=19300, e=0.25, i=45., Omega=90., omega=90.):
     """
 
     global x, y, z
-    ax_orbit.clear()
     i_rad = np.radians(i)
     Omega_rad = np.radians(Omega)
     omega_rad = np.radians(omega)
@@ -312,66 +434,11 @@ def plot_orbit(a=19300, e=0.25, i=45., Omega=90., omega=90.):
     # Rotation by the longitude of the ascending node (Omega)
     x = x_triple_prime * np.cos(Omega_rad) - y_triple_prime * np.sin(Omega_rad)
     y = x_triple_prime * np.sin(Omega_rad) + y_triple_prime * np.cos(Omega_rad)
-    z = z_triple_prime
-
-    ax_orbit.plot(x, y, z, label='Satellite Orbit')
-    coord_max = np.max([np.abs(x), np.abs(y), np.abs(z)])
-    ax_orbit.set_xlim(-coord_max, coord_max)
-    ax_orbit.set_ylim(-coord_max, coord_max)
-    ax_orbit.set_zlim(-coord_max, coord_max)
-
-    # Parameters Van Allen Belts
-    global R_earth, Radius_inner, Rcenter_inner, Radius_outter, Rcenter_outter
-    R_earth = 6371.
-
-    # Inner Belt # Li and Hudson 2019
-    Rcenter_inner = 1.5*R_earth
-    rinner_min = 1.3*R_earth
-    rinner_max = 1.7*R_earth
-    Radius_inner = 0.2*R_earth
-
-    X_inner, Y_inner, Z_inner = torus(Rcenter_inner, Radius_inner)
-    ax_orbit.plot_surface(X_inner, Y_inner, Z_inner, color='red', alpha=0.6)
-    ax_orbit.scatter(1e18, 1e18, 1e18, color='red', alpha=0.6, lw=4, label='Inner Van Allen Belt')
-
-    # Outter belt # Li and Hudson 2019
-    Rcenter_outter = 4.*R_earth
-    routter_min = 3.*R_earth
-    routter_max = 5.*R_earth
-    Radius_outter = 1.*R_earth
-
-    X_outter, Y_outter, Z_outter = torus(Rcenter_outter, Radius_outter)
-    ax_orbit.plot_surface(X_outter, Y_outter, Z_outter, color='green', alpha=0.3)
-    ax_orbit.scatter(1e18, 1e18, 1e18, color='green', alpha=0.3, lw=4, label='Outer Van Allen Belt')
+    z = z_triple_prime 
 
 
-    thetae = np.linspace(0, 2*np.pi, 100) 
-    phie = np.linspace(0, np.pi, 100)
-    thetae, phie = np.meshgrid(thetae, phie)
 
-    # Earth coordinate
-    x_earth = R_earth * np.cos(thetae) * np.sin(phie)
-    y_earth = R_earth * np.sin(thetae) * np.sin(phie)
-    z_earth = R_earth * np.cos(phie)
-    ax_orbit.plot_surface(x_earth, y_earth, z_earth, color='b', alpha=0.7)
-
-
-    # Highlight South Atlantic Anomaly
-    R_SSA = 5000.
-    x_ssa = R_SSA * np.cos(thetae) * np.sin(phie) + 4783.6
-    y_ssa = R_SSA * np.sin(thetae) * np.sin(phie) - 4014.7
-    z_ssa = R_SSA * np.cos(phie) - 3185.5
-    ax_orbit.plot_surface(x_ssa, y_ssa, z_ssa, color='purple', alpha=0.5)
-    ax_orbit.scatter(1e18, 1e18, 1e18, color='purple', label='SAA', s=20, alpha=0.5)
-
-    ax_orbit.legend(loc='upper left')
-    ax_orbit.set_xlabel('X (km)')
-    ax_orbit.set_ylabel('Y (km)')
-    ax_orbit.set_zlabel('Z (km)')
-    ax_orbit.set_title('3D Orbit Visualization', fontsize=16)
-
-
-# In[10]:
+# In[14]:
 
 
 def update_orbit(event=None):
@@ -385,16 +452,28 @@ def update_orbit(event=None):
 
     """
 
+    t0 = time.perf_counter() # DEBUG
+
     a = get_converted_slider_value("Semi-major axis")
     e = get_converted_slider_value("Eccentricity")
     i = get_converted_slider_value("Inclination")
     Omega = get_converted_slider_value("Longitude of ascending node")
     omega = get_converted_slider_value("Argument of periapsis")
     plot_orbit(a=a, e=e, i=i, Omega=Omega, omega=omega)
-    canvas_orbit.draw()
+
+    orbit_line.set_data(x, y)
+    orbit_line.set_3d_properties(z)
+    fig_orbit.canvas.draw_idle()
+    #fig_orbit.canvas.restore_region(orbit_bg)
+    #ax_orbit.draw_artist(orbit_line)
+    #fig_orbit.canvas.blit(fig_orbit.bbox)
 
 
-# In[11]:
+    t1 = time.perf_counter() #DEBUG
+    print(f"[update_orbit] execution time = {(t1 - t0)*1000:.2f} ms") #DEBUG
+
+
+# In[15]:
 
 
 def get_converted_slider_value(param):
@@ -424,7 +503,7 @@ def get_converted_slider_value(param):
         return param_sliders[param]["slider"].get()/100.*11.
 
 
-# In[12]:
+# In[16]:
 
 
 def get_value_for_slider(param):
@@ -439,7 +518,7 @@ def get_value_for_slider(param):
     """
 
     if (param == "Semi-major axis"):
-        return (float(param_sliders[param]["entry"].get())-6800.)/5.e4*100.
+        return (float(param_sliders[param]["entry"].get())-6800.)/4.e4*100.
     elif (param == "Eccentricity"):
         if (param_sliders[param]["entry"].get()==1.):
             return 99.99
@@ -454,7 +533,7 @@ def get_value_for_slider(param):
         return float(param_sliders[param]["entry"].get())*100./11.
 
 
-# In[13]:
+# In[17]:
 
 
 def print_Period(event=None):
@@ -484,7 +563,7 @@ def print_Period(event=None):
         Period_label.config(text=f"Orbital period P = {P_sec:.2f} second(s)")
 
 
-# In[14]:
+# In[18]:
 
 
 def plot_solar_flux(x=2.75):
@@ -514,7 +593,7 @@ def plot_solar_flux(x=2.75):
     current_solar_flux = 1361. + 1. * np.sin(2 * np.pi / 11 * (x-5.5/2.))
 
 
-# In[15]:
+# In[19]:
 
 
 def update_solar_flux(event=None):
@@ -531,10 +610,9 @@ def update_solar_flux(event=None):
     x = get_converted_slider_value("Solar Activity Phase")
     plot_solar_flux(x=x)
     canvas_solar_flux.draw()
-    update_radiation()
 
 
-# In[16]:
+# In[20]:
 
 
 def compute_radiation(year=None):
@@ -562,25 +640,26 @@ def compute_radiation(year=None):
     radiation *= coef_ionising*current_solar_flux*3600.*material_params["Satellite"]["muorho"]*1e3
 
     # Computing TID from energetic particles in Van Allen belts
-    fluence_innerBelt, fluence_outterBelt = compute_fluence_van_allen(year=year)
+    fluence_innerBelt, fluence_outerBelt = compute_fluence_van_allen(year=year)
     Area = 6.0e4 # 6 faces of surface area of 10^4 cm^2
     mA = 100e3 / Area #material_params["Satellite"]["rho"]*1.e-3 * 0.5 #mass per unit area g/cm2
     MeV_to_J = 1.602e-13
-    for i in range(len(r)):
-        if (isInTorus(x[i], y[i], z[i], Rcenter_inner, Radius_inner)):
-            deltaE = min(material_params["Satellite"]["StopPower_proton"] * mA, 10.) * MeV_to_J
-            rad = fluence_innerBelt[i] * Area/4 * deltaE / 200. * 1e3 * 3600.
-            radiation[i] += rad
-        elif (isInTorus(x[i], y[i], z[i], Rcenter_outter, Radius_outter)):
-            deltaE = min(material_params["Satellite"]["StopPower_elec"] * mA, 0.5) * MeV_to_J
-            rad = fluence_outterBelt[i] * Area/4 * deltaE / 200. * 1e3 * 3600.
-            radiation[i] += rad
-        else:
-            radiation[i] += 0.
+
+    mask_inner = isInTorus(x, y, z, Rcenter_inner, Radius_inner)
+    mask_outer = isInTorus(x, y, z, Rcenter_outer, Radius_outer)
+    deltaE_inner = min(material_params["Satellite"]["StopPower_proton"] * mA, 10.) * MeV_to_J
+    deltaE_outer = min(material_params["Satellite"]["StopPower_elec"] * mA, 0.5) * MeV_to_J
+    radiation_inner = fluence_innerBelt * Area/4 * deltaE_inner / 200. * 1e3 * 3600.
+    radiation_outer = fluence_outerBelt * Area/4 * deltaE_outer / 200. * 1e3 * 3600.
+
+    radiation += np.where(mask_inner, radiation_inner, 0.)
+    radiation += np.where(mask_outer, radiation_outer, 0.)
+
+
     return phase, radiation
 
 
-# In[17]:
+# In[21]:
 
 
 def plot_radiation():
@@ -602,7 +681,7 @@ def plot_radiation():
     ax_radiation.set_title('Radiation vs. Orbital Phase')
 
 
-# In[18]:
+# In[22]:
 
 
 def update_radiation(event=None):
@@ -620,7 +699,7 @@ def update_radiation(event=None):
     canvas_radiation.draw()
 
 
-# In[19]:
+# In[23]:
 
 
 def update_material():
@@ -637,7 +716,7 @@ def update_material():
     update_all()
 
 
-# In[20]:
+# In[24]:
 
 
 def coefficient_shielding_tid():
@@ -660,7 +739,7 @@ def coefficient_shielding_tid():
     return attenuation_factor
 
 
-# In[21]:
+# In[25]:
 
 
 def coefficients_shielding_DD():
@@ -683,7 +762,7 @@ def coefficients_shielding_DD():
     StopPower_proton = material_params[selected_material.get()]["StopPower_proton"]
     StopPower_elec = material_params[selected_material.get()]["StopPower_elec"]
 
-    lambda_ = np.inf*np.ones(3) # array containing the lambda values for solar particles, protons in Van Allen inner belt and electrons in Van Allen outter belt (in mm)
+    lambda_ = np.inf*np.ones(3) # array containing the lambda values for solar particles, protons in Van Allen inner belt and electrons in Van Allen outer belt (in mm)
     rho = material_params[selected_material.get()]["rho"]/1000. # g/cm3
 
     lambda_[0] = E_solar/(StopPower_sol*rho)
@@ -710,7 +789,7 @@ def coefficients_shielding_DD():
     return attenuation_factor
 
 
-# In[22]:
+# In[26]:
 
 
 def printTotalMassCost():
@@ -756,7 +835,7 @@ def printTotalMassCost():
     label_SatTotalcost.config(text=f"Total Cost: ${total_cost_mil:.0f},{total_cost_thds:03.0f},{total_cost_unit:03.0f}")
 
 
-# In[23]:
+# In[27]:
 
 
 def compute_DD(year=None):
@@ -779,20 +858,20 @@ def compute_DD(year=None):
     if (year==None):
         year = get_converted_slider_value("Solar Activity Phase")
 
-    t_inner, t_outter, dt = compute_time_in_van_allen() # flag arrays and time_step array
+    t_inner, t_outer, dt = compute_time_in_van_allen() # flag arrays and time_step array
 
     solar_particle_fluence_o100MeV = 8.24e1 *(1.1 + np.sin(2 * np.pi / 11 * (year-5.5/2.))) # Section 4.3 https://ntrs.nasa.gov/api/citations/20000021506/downloads/20000021506.pdf
-    fluence_innerBelt, fluence_outterBelt = compute_fluence_van_allen(year=year)
+    fluence_innerBelt, fluence_outerBelt = compute_fluence_van_allen(year=year)
     NIEL_protons = 5e-3  # NIEL for protons (MeV cm²/g)
     NIEL_electrons = 1e-4  # NIEL for electrons (MeV cm²/g)
 
     DD_solar = solar_particle_fluence_o100MeV * Period_s * NIEL_protons
     DD_protons = np.sum(fluence_innerBelt * dt * t_inner * NIEL_protons)
-    DD_electrons = np.sum(fluence_outterBelt * dt * t_outter * NIEL_electrons)
+    DD_electrons = np.sum(fluence_outerBelt * dt * t_outer * NIEL_electrons)
     return DD_solar, DD_protons, DD_electrons
 
 
-# In[24]:
+# In[28]:
 
 
 def printTIDperOrbit(year=None):
@@ -821,7 +900,7 @@ def printTIDperOrbit(year=None):
     return
 
 
-# In[25]:
+# In[29]:
 
 
 def printDDperOrbit(year=None):
@@ -848,7 +927,7 @@ def printDDperOrbit(year=None):
     return    
 
 
-# In[26]:
+# In[30]:
 
 
 def integrateTID_DD():
@@ -916,7 +995,7 @@ def integrateTID_DD():
     return time, TIDvsTime, DDvsTime
 
 
-# In[27]:
+# In[31]:
 
 
 def plot_tid_DD():
@@ -963,7 +1042,7 @@ def plot_tid_DD():
     DDvsTime_prev = DDvsTime
 
 
-# In[28]:
+# In[32]:
 
 
 def update_tid_DD(event=None):
@@ -976,11 +1055,12 @@ def update_tid_DD(event=None):
     Returns:
 
     """
+    update_labels()
     plot_tid_DD()
     canvas_tid.draw()
 
 
-# In[29]:
+# In[33]:
 
 
 def initialize_entries():
@@ -1007,7 +1087,7 @@ def initialize_entries():
 # 
 # ## Initialize main application
 
-# In[30]:
+# In[34]:
 
 
 root = tk.Tk()
@@ -1028,7 +1108,7 @@ position_y = (screen_height - window_height) // 2
 root.geometry(f"{window_width}x{window_height}+{position_x}+{position_y}")
 
 
-# In[31]:
+# In[35]:
 
 
 # Create main frame
@@ -1036,7 +1116,7 @@ main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True)
 
 
-# In[32]:
+# In[36]:
 
 
 # Create panels (3 columns x 2 rows)
@@ -1046,7 +1126,7 @@ for i, row in enumerate(frames):
         frame.grid(row=i, column=j, sticky="nsew", padx=5, pady=15)
 
 
-# In[33]:
+# In[37]:
 
 
 # Configure row and column weights for resizing
@@ -1056,7 +1136,7 @@ for j in range(3):
     main_frame.grid_columnconfigure(j, weight=1)
 
 
-# In[34]:
+# In[38]:
 
 
 progress_var = tk.DoubleVar()
@@ -1064,21 +1144,21 @@ progress_bar_frame = tk.Frame(root, borderwidth=1, relief="groove")
 progress_bar_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
 
 
-# In[35]:
+# In[39]:
 
 
 progress_bar = ttk.Progressbar(progress_bar_frame, variable=progress_var, maximum=100)
 progress_bar.pack(fill=tk.X, padx=5, pady=5)
 
 
-# In[36]:
+# In[40]:
 
 
 def on_closing():
     root.quit()
 
 
-# In[37]:
+# In[41]:
 
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
@@ -1087,17 +1167,23 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 # ---
 # ## Panel 1: 3D Orbit Visualization
 
-# In[38]:
+# In[42]:
 
 
 # Create Figure
 fig_orbit = plt.figure()
 ax_orbit = fig_orbit.add_subplot(111, projection='3d')
 ax_orbit.set_box_aspect([1.0, 1.0, 1.0])
+plot_3DObjects()
+fig_orbit.canvas.draw()  # one full render
+orbit_bg = fig_orbit.canvas.copy_from_bbox(fig_orbit.bbox)
 plot_orbit()
+orbit_line.set_data(x, y)
+orbit_line.set_3d_properties(z)
+fig_orbit.canvas.draw_idle()
 
 
-# In[39]:
+# In[43]:
 
 
 # Insert the Figure in the Panel 1
@@ -1109,7 +1195,7 @@ canvas_orbit.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 # 
 # ## Panel 4: Orbital Parameters
 
-# In[40]:
+# In[44]:
 
 
 parameters_frame = frames[1][0]
@@ -1117,7 +1203,7 @@ param_label = tk.Label(parameters_frame, text="Orbital Parameters", font=("Arial
 param_label.pack(pady=10)
 
 
-# In[41]:
+# In[45]:
 
 
 # Orbital parameter sliders
@@ -1126,7 +1212,7 @@ param_sliders = {}
 params = {"Semi-major axis":"km", "Eccentricity":" ", "Inclination":"°", "Longitude of ascending node":"°", "Argument of periapsis":"°", "Solar Activity Phase":"years"}
 
 
-# In[42]:
+# In[46]:
 
 
 for param, unit in params.items():
@@ -1160,7 +1246,12 @@ for param, unit in params.items():
         value = get_converted_slider_value(param)
         param_sliders[param]["entry"].delete(0, tk.END)
         param_sliders[param]["entry"].insert(0, f"{value:.2f}")
-        update_basicgraphs()
+        if (param=="Solar Activity Phase"):
+            update_solar_flux()
+        else:
+            update_orbit()
+        update_radiation()
+        update_basicslabels()
 
     # Function to synchronize entry to slider
     def sync_entry_to_slider(event=None, param=param):
@@ -1173,7 +1264,12 @@ for param, unit in params.items():
             current_value = get_converted_slider_value(param)
             param_sliders[param]["entry"].delete(0, tk.END)
             param_sliders[param]["entry"].insert(0, f"{current_value:.2f}")
-        update_basicgraphs()
+        if (param=="Solar Activity Phase"):
+            update_solar_flux()
+        else:
+            update_orbit()
+        update_radiation()
+        update_basicslabels()
 
     # Bind events
     slider.bind("<B1-Motion>", sync_slider_to_entry)
@@ -1187,7 +1283,7 @@ for param, unit in params.items():
     param_sliders[param] = {"slider": slider, "entry": entry}
 
 
-# In[43]:
+# In[47]:
 
 
 Period_label = tk.Label(parameters_frame, text=f"Orbital period P: NaN day(s)", font=("Arial", 14), fg="black")
@@ -1199,7 +1295,7 @@ print_Period()
 # ---
 # ## Panel 5: Solar Flux vs. Solar Cycle
 
-# In[44]:
+# In[48]:
 
 
 fig_solar_flux = plt.figure()
@@ -1207,7 +1303,7 @@ ax_solar_flux = fig_solar_flux.add_subplot(111)
 plot_solar_flux()
 
 
-# In[45]:
+# In[49]:
 
 
 canvas_solar_flux = FigureCanvasTkAgg(fig_solar_flux, master=frames[1][1])
@@ -1218,7 +1314,7 @@ canvas_solar_flux.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 # 
 # ## Panel 3: Radiation vs. Orbital Phase
 
-# In[46]:
+# In[50]:
 
 
 fig_radiation = plt.figure()
@@ -1226,7 +1322,7 @@ ax_radiation = fig_radiation.add_subplot(111)
 plot_radiation()
 
 
-# In[47]:
+# In[51]:
 
 
 canvas_radiation = FigureCanvasTkAgg(fig_radiation, master=frames[0][1])
@@ -1237,7 +1333,7 @@ canvas_radiation.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 # 
 # ## Panel 6: Satellite Properties
 
-# In[48]:
+# In[52]:
 
 
 protection_frame = frames[1][2]
@@ -1245,7 +1341,7 @@ protection_label = tk.Label(protection_frame, text="Satellite characteristics", 
 protection_label.pack(pady=5)
 
 
-# In[49]:
+# In[53]:
 
 
 label_Satsize_frame = tk.Frame(protection_frame)
@@ -1257,7 +1353,7 @@ label_Satsize.pack(side=tk.LEFT)
 
 # 
 
-# In[50]:
+# In[54]:
 
 
 label_Satmass_frame = tk.Frame(protection_frame)
@@ -1269,7 +1365,7 @@ label_Satmass.pack(side=tk.LEFT)
 
 # 
 
-# In[51]:
+# In[55]:
 
 
 label_TIDperOrbit_frame = tk.Frame(protection_frame)
@@ -1281,7 +1377,7 @@ label_TIDperOrbit.pack(side=tk.LEFT)
 
 # 
 
-# In[52]:
+# In[56]:
 
 
 label_DDperOrbit_frame = tk.Frame(protection_frame)
@@ -1293,7 +1389,7 @@ label_DDperOrbit.pack(side=tk.LEFT)
 
 # 
 
-# In[53]:
+# In[57]:
 
 
 # Sub frame for label and value 
@@ -1304,7 +1400,7 @@ label_protection = tk.Label(label_value_frame_protection, text="Shielding thickn
 label_protection.pack(side=tk.LEFT)
 
 
-# In[54]:
+# In[58]:
 
 
 # Entry field for parameter value
@@ -1312,7 +1408,7 @@ entry_protection = tk.Entry(label_value_frame_protection, font=("Arial", 16), wi
 entry_protection.pack(side=tk.LEFT, padx=5)
 
 
-# In[55]:
+# In[59]:
 
 
 # Label for units
@@ -1320,7 +1416,7 @@ unit_label = tk.Label(label_value_frame_protection, text="mm", font=("Arial", 16
 unit_label.pack(side=tk.LEFT)
 
 
-# In[56]:
+# In[60]:
 
 
 # Slider for parameter
@@ -1329,7 +1425,7 @@ slider_protection.pack(fill=tk.X, padx=5, pady=5)
 slider_protection.set(10)
 
 
-# In[57]:
+# In[61]:
 
 
 # Function to synchronize slider to entry
@@ -1340,7 +1436,7 @@ def sync_slider_to_entry_protection(event=None):
     param_sliders["Shielding thickness"]["entry"].insert(0, f"{value:.2f}")
 
 
-# In[58]:
+# In[62]:
 
 
 # Function to synchronize entry to slider
@@ -1354,26 +1450,26 @@ def sync_entry_to_slider_protection(event=None):
         current_value = param_sliders["Shielding thickness"]["slider"].get()/10.
         param_sliders["Shielding thickness"]["entry"].delete(0, tk.END)
         param_sliders["Shielding thickness"]["entry"].insert(0, f"{current_value:.2f}")
-    update_all()
+    update_tid_DD()
 
 
-# In[59]:
+# In[63]:
 
 
 # Bind events
 slider_protection.bind("<B1-Motion>", sync_slider_to_entry_protection)
-slider_protection.bind("<ButtonRelease-1>", update_all)
+slider_protection.bind("<ButtonRelease-1>", update_tid_DD)
 entry_protection.bind("<Return>", sync_entry_to_slider_protection)
 
 
-# In[60]:
+# In[64]:
 
 
 # Initialize the entry with the slider's starting value
 entry_protection.insert(0, f"{slider.get():.2f}")
 
 
-# In[61]:
+# In[65]:
 
 
 # Add the slider and entry to the dictionary
@@ -1382,7 +1478,7 @@ param_sliders["Shielding thickness"] = {"slider": slider_protection, "entry": en
 
 # 
 
-# In[62]:
+# In[66]:
 
 
 label_TIDperOrbit_protected_frame = tk.Frame(protection_frame)
@@ -1394,7 +1490,7 @@ label_TIDperOrbit_protected.pack(side=tk.LEFT)
 
 # 
 
-# In[63]:
+# In[67]:
 
 
 label_DDperOrbit_protected_frame = tk.Frame(protection_frame)
@@ -1406,7 +1502,7 @@ label_DDperOrbit_protected.pack(side=tk.LEFT)
 
 # 
 
-# In[64]:
+# In[68]:
 
 
 # Material Frame
@@ -1414,7 +1510,7 @@ global selected_material
 selected_material = tk.StringVar(value="None")
 
 
-# In[65]:
+# In[69]:
 
 
 material_frame = tk.Frame(protection_frame)
@@ -1426,7 +1522,7 @@ label_material.pack(side=tk.LEFT)
 
 # 
 
-# In[66]:
+# In[70]:
 
 
 # Conditional checkbox Aluminium
@@ -1437,7 +1533,7 @@ protection_Aluminium = tk.Radiobutton(
 protection_Aluminium.pack(anchor="w", padx=10)
 
 
-# In[67]:
+# In[71]:
 
 
 # Conditional checkbox Polyethylene
@@ -1448,7 +1544,7 @@ protection_polyethylene = tk.Radiobutton(
 protection_polyethylene.pack(anchor="w", padx=10)
 
 
-# In[68]:
+# In[72]:
 
 
 # Conditional checkbox Composite
@@ -1461,7 +1557,7 @@ protection_composite.pack(anchor="w", padx=10)
 
 # 
 
-# In[69]:
+# In[73]:
 
 
 label_Satmass_shield_frame = tk.Frame(protection_frame)
@@ -1473,7 +1569,7 @@ label_Satmass_shield.pack(side=tk.LEFT)
 
 # 
 
-# In[70]:
+# In[74]:
 
 
 label_SatLaunchcost_frame = tk.Frame(protection_frame)
@@ -1485,7 +1581,7 @@ label_SatLaunchcost.pack(side=tk.LEFT)
 
 # 
 
-# In[71]:
+# In[75]:
 
 
 label_SatShieldingcost_frame = tk.Frame(protection_frame)
@@ -1497,14 +1593,14 @@ label_SatShieldingcost.pack(side=tk.LEFT)
 
 # 
 
-# In[72]:
+# In[76]:
 
 
 separator = ttk.Separator(protection_frame, orient="horizontal")
 separator.pack(fill="x", padx=10, pady=5)
 
 
-# In[73]:
+# In[77]:
 
 
 label_SatTotalcost_frame = tk.Frame(protection_frame)
@@ -1518,7 +1614,7 @@ label_SatTotalcost.pack(side=tk.LEFT)
 # 
 # ## Panel 5: TID & DD vs. Time
 
-# In[74]:
+# In[78]:
 
 
 fig_tid = plt.figure()
@@ -1534,7 +1630,7 @@ DDvsTime_prev = [0.]
 plot_tid_DD()
 
 
-# In[75]:
+# In[79]:
 
 
 canvas_tid = FigureCanvasTkAgg(fig_tid, master=frames[0][2])
@@ -1543,7 +1639,7 @@ canvas_tid.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 # 
 
-# In[76]:
+# In[80]:
 
 
 # update the entry from slider values
